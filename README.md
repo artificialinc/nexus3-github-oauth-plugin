@@ -89,6 +89,8 @@ You can build the project with the integrated maven wrapper like so: `./mvnw cle
 
 You can also build locally using Docker by running `docker run --rm -it -v $(pwd):/data -w /data maven:3.5.2 mvn clean package`
 
+*To re-use your local maven repository use this command instead `docker run --rm -it -v ~/.m2:/m2 -v $(pwd):/data -w /data maven:3.5.2 mvn -Dmaven.repo.local=/m2 clean package`*
+
 You can build a ready to run docker image using the [`Dockerfile`](Dockerfile) to quickly spin up a nexus with the plugin already preinstalled.
 
 ## Credits
