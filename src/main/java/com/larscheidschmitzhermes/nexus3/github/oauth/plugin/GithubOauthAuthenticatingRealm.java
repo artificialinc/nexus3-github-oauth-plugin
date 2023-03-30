@@ -47,7 +47,7 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.apache.shiro.realm.CachingRealm#getName()
 	 */
 	@Override
@@ -57,7 +57,7 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see org.apache.shiro.realm.AuthorizingRealm#onInit()
 	 */
 	@Override
@@ -68,7 +68,7 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * org.apache.shiro.realm.AuthorizingRealm#doGetAuthorizationInfo(org.apache
 	 * .shiro.subject.PrincipalCollection)
@@ -76,13 +76,22 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 	@Override
 	protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection principals) {
 		GithubPrincipal user = (GithubPrincipal) principals.getPrimaryPrincipal();
-		LOGGER.info("doGetAuthorizationInfo for user {} with roles {}", user.getUsername(), user.getRoles().stream().collect(Collectors.joining(", ")));
-		return new SimpleAuthorizationInfo(user.getRoles());
+		GithubPrincipal authenticatedPrincipal;
+		try {
+			authenticatedPrincipal = githubClient.authz(user.getUsername(), user.getOauthToken());
+			LOGGER.info("Successfully authenticated {}", user.getUsername());
+		} catch (GithubAuthenticationException e) {
+			LOGGER.warn("Failed authentication", e);
+			return null;
+		}
+		LOGGER.info("doGetAuthorizationInfo for user {} with roles {}", authenticatedPrincipal.getUsername(),
+				authenticatedPrincipal.getRoles().stream().collect(Collectors.joining(", ")));
+		return new SimpleAuthorizationInfo(authenticatedPrincipal.getRoles());
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see
 	 * org.apache.shiro.realm.AuthenticatingRealm#doGetAuthenticationInfo(org.
 	 * apache.shiro.authc.AuthenticationToken)
@@ -99,7 +108,7 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 		GithubPrincipal authenticatedPrincipal;
 		try {
 			authenticatedPrincipal = githubClient.authz(t.getUsername(), t.getPassword());
-			LOGGER.info("Successfully authenticated {}",t.getUsername());
+			LOGGER.info("Successfully authenticated {}", t.getUsername());
 		} catch (GithubAuthenticationException e) {
 			LOGGER.warn("Failed authentication", e);
 			return null;
@@ -112,7 +121,7 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 	 * Creates the simple auth info.
 	 *
 	 * @param token
-	 *            the token
+	 *              the token
 	 * @return the simple authentication info
 	 */
 	private SimpleAuthenticationInfo createSimpleAuthInfo(GithubPrincipal principal, UsernamePasswordToken token) {
