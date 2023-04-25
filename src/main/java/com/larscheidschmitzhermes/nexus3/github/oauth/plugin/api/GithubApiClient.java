@@ -101,6 +101,7 @@ public class GithubApiClient {
         Set<String> orgs = Collections.emptySet();
 
         if (configuration.getOrgCheckUseRepos()) {
+            LOGGER.info("orgCheckUseRepos is enabled. Checking for org membership using repo access");
             if (configuration.getGithubOrg() != null && !configuration.getGithubOrg().equals("")) {
                 orgs = Arrays.stream(configuration.getGithubOrg().split(","))
                         .collect(Collectors.toSet());
