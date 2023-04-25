@@ -7,6 +7,7 @@ public class MockGithubOauthConfiguration extends GithubOauthConfiguration {
     private Duration principalCacheTtl;
 
     private String org = "TEST-ORG";
+    private boolean orgCheckUseRepos = false;
 
     public MockGithubOauthConfiguration(Duration principalCacheTtl) {
         this.principalCacheTtl = principalCacheTtl;
@@ -29,5 +30,14 @@ public class MockGithubOauthConfiguration extends GithubOauthConfiguration {
 
     public void setGithubOrg(String org) {
         this.org = org;
+    }
+
+    @Override
+    public boolean getOrgCheckUseRepos() {
+        return orgCheckUseRepos;
+    }
+
+    public void setOrgCheckUseRepos(boolean orgCheckUseRepos) {
+        this.orgCheckUseRepos = orgCheckUseRepos;
     }
 }

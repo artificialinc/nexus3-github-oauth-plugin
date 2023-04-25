@@ -23,6 +23,8 @@ public class GithubOauthConfiguration {
 
     private static final String GITHUB_USER_TEAMS_PATH = "/user/teams";
 
+    private static final String GITHUB_USER_REPOS_PATH = "/user/repos";
+
     private static final String GITHUB_USER_ORGS_PATH = "/user/orgs";
 
     private static final Duration DEFAULT_PRINCIPAL_CACHE_TTL = Duration.ofMinutes(1);
@@ -34,6 +36,8 @@ public class GithubOauthConfiguration {
     private static final String GITHUB_PRINCIPAL_CACHE_TTL_KEY = "github.principal.cache.ttl";
 
     private static final String GITHUB_ORG = "github.org";
+
+    private static final String GITHUB_ORG_USE_REPOS = "github.org.userepos";
 
     private static final String REQUEST_CONNECT_TIMEOUT = "request.timeout.connect";
 
@@ -69,13 +73,19 @@ public class GithubOauthConfiguration {
         return getGithubApiUrl() + GITHUB_USER_PATH;
     }
 
-    public String getGithubUserTeamsUri() { return getGithubApiUrl() + GITHUB_USER_TEAMS_PATH + "?per_page=100"; }
+    public String getGithubUserTeamsUri() { return getGithubApiUrl() + GITHUB_USER_TEAMS_PATH; }
+
+    public String getGithubUserReposUri() { return getGithubApiUrl() + GITHUB_USER_REPOS_PATH; }
 
     public String getGithubUserOrgsUri() { return getGithubApiUrl() + GITHUB_USER_ORGS_PATH; }
 
 
     public String getGithubOrg() {
         return configuration.getProperty(GITHUB_ORG, "");
+    }
+
+    public boolean getOrgCheckUseRepos() {
+        return Boolean.parseBoolean(configuration.getProperty(GITHUB_ORG_USE_REPOS, "false"));
     }
 
     public Duration getPrincipalCacheTtl() {

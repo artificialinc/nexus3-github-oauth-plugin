@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.Collections;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -96,7 +97,24 @@ public class GithubApiClient {
         GithubPrincipal principal = new GithubPrincipal();
 
         principal.setUsername(githubUser.getLogin());
-        principal.setRoles(generateRolesFromGithubOrgMemberships(token, loginName));
+
+        Set<String> orgs = Collections.emptySet();
+
+        if (configuration.getOrgCheckUseRepos()) {
+            if (configuration.getGithubOrg() != null && !configuration.getGithubOrg().equals("")) {
+                orgs = Arrays.stream(configuration.getGithubOrg().split(","))
+                        .collect(Collectors.toSet());
+            }
+            if (orgs.isEmpty()) {
+                LOGGER.warn("orgCheckUseRepos is enabled but no orgs are configured. This could allow unauthenticated users in");
+            }
+        }
+
+        Set<String> roles = generateRolesFromGithubRepos(token, loginName, orgs);
+
+        roles.addAll(generateRolesFromGithubOrgMemberships(token, loginName));
+
+        principal.setRoles(roles);
         principal.setOauthToken(token);
 
         return principal;
@@ -110,7 +128,7 @@ public class GithubApiClient {
             throw new GithubAuthenticationException("Given username does not match Github Username!");
         }
 
-        if (configuration.getGithubOrg() != null && !configuration.getGithubOrg().equals("")) {
+        if (configuration.getGithubOrg() != null && !configuration.getGithubOrg().equals("") && !configuration.getOrgCheckUseRepos()) {
             checkUserInOrg(configuration.getGithubOrg(), token);
         }
         return githubUser;
@@ -125,6 +143,31 @@ public class GithubApiClient {
         }
     }
 
+    private Set<String> generateRolesFromGithubRepos(char[] token, String loginName, Set<String> orgs) throws GithubAuthenticationException {
+        int page = 1;
+        Set<GithubRepo> repos = getAndSerializeCollectionPage(configuration.getGithubUserReposUri(), token, GithubRepo.class, page);
+        if (repos.size() >= 100) {
+            while(true) {
+                page++;
+                Set<GithubRepo> reposPage = getAndSerializeCollectionPage(configuration.getGithubUserReposUri(), token, GithubRepo.class, page);
+                repos.addAll(reposPage);
+                if (reposPage.size() < 100) {
+                    break;
+                }
+            }
+        }
+        // TODO: Do this in one pass? Or do a bigger refactor. Putting this here for now because owner/repo are still split
+        if (orgs.size() > 0) {
+            Set<GithubRepo> reposInAllowedOrgs = repos.stream().filter(repo -> {
+                return orgs.contains(repo.getOwner().getName());
+            }).collect(Collectors.toSet());
+            if (reposInAllowedOrgs.size() == 0) {
+                throw new GithubAuthenticationException("Given username has no repo access in '" + orgs + "'!");
+            }
+        }
+        return repos.stream().map(this::mapGithubRepoToNexusRole).collect(Collectors.toSet());
+    }
+
     private Set<String> generateRolesFromGithubOrgMemberships(char[] token, String loginName) throws GithubAuthenticationException {
         Set<GithubTeam> teams = getAndSerializeCollection(configuration.getGithubUserTeamsUri(), token, GithubTeam.class);
         if (teams.size() >= 100) {
@@ -135,6 +178,10 @@ public class GithubApiClient {
 
     private String mapGithubTeamToNexusRole(GithubTeam team) {
         return team.getOrganization().getLogin() + "/" + team.getName();
+    }
+
+    private String mapGithubRepoToNexusRole(GithubRepo repo) {
+        return repo.getOwner().getLogin() + "/" + repo.getName();
     }
 
     private BasicHeader constructGithubAuthorizationHeader(char[] token) {
@@ -153,7 +200,19 @@ public class GithubApiClient {
 
     private <T> Set<T> getAndSerializeCollection(String uri, char[] token, Class<T> clazz) throws GithubAuthenticationException {
         Set<T> result;
-        try (InputStreamReader reader = executeGet(uri, token)) {
+        try (InputStreamReader reader = executeGet(uri  + "?per_page=100", token)) {
+            JavaType javaType = mapper.getTypeFactory()
+                    .constructCollectionType(Set.class, clazz);
+            result = mapper.readValue(reader, javaType);
+        } catch (IOException e) {
+            throw new GithubAuthenticationException(e);
+        }
+        return result;
+    }
+
+    private <T> Set<T> getAndSerializeCollectionPage(String uri, char[] token, Class<T> clazz, int page) throws GithubAuthenticationException {
+        Set<T> result;
+        try (InputStreamReader reader = executeGetPage(uri  + "?per_page=100", token, page)) {
             JavaType javaType = mapper.getTypeFactory()
                     .constructCollectionType(Set.class, clazz);
             result = mapper.readValue(reader, javaType);
@@ -179,7 +238,24 @@ public class GithubApiClient {
             request.releaseConnection();
             throw new GithubAuthenticationException(e);
         }
+    }
 
+    private InputStreamReader executeGetPage(String uri, char[] token, int page) throws GithubAuthenticationException {
+        HttpGet request = new HttpGet(uri + "&page=" + page);
+        request.addHeader(constructGithubAuthorizationHeader(token));
+        try {
+            HttpResponse response = client.execute(request);
+            if (response.getStatusLine().getStatusCode() != 200) {
+                LOGGER.warn("Authentication failed, status code was {}",
+                        response.getStatusLine().getStatusCode());
+                request.releaseConnection();
+                throw new GithubAuthenticationException("Authentication failed.");
+            }
+            return new InputStreamReader(response.getEntity().getContent());
+        } catch (IOException e) {
+            request.releaseConnection();
+            throw new GithubAuthenticationException(e);
+        }
     }
 
 }
