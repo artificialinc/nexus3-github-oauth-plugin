@@ -8,6 +8,7 @@ public class MockGithubOauthConfiguration extends GithubOauthConfiguration {
 
     private String org = "TEST-ORG";
     private boolean orgCheckUseRepos = false;
+    private String baseRole = "";
 
     public MockGithubOauthConfiguration(Duration principalCacheTtl) {
         this.principalCacheTtl = principalCacheTtl;
@@ -30,6 +31,15 @@ public class MockGithubOauthConfiguration extends GithubOauthConfiguration {
 
     public void setGithubOrg(String org) {
         this.org = org;
+    }
+
+    @Override
+    public String getBaseRole() {
+        return baseRole;
+    }
+
+    public void setBaseRole(String baseRole) {
+        this.baseRole = baseRole;
     }
 
     @Override

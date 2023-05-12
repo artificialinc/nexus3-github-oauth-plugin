@@ -167,7 +167,14 @@ public class GithubApiClient {
                 throw new GithubAuthenticationException("Given username has no repo access in '" + orgs + "'!");
             }
         }
-        return repos.stream().map(this::mapGithubRepoToNexusRole).collect(Collectors.toSet());
+        Set<String> roles = repos.stream().map(this::mapGithubRepoToNexusRole).collect(Collectors.toSet());
+        // Add a base "authenticated" role. Careful when configuring this. It can't match a repo pattern
+        // TODO: validate that
+        if (configuration.getBaseRole() != null && !configuration.getBaseRole().equals("")) {
+            roles.add(configuration.getBaseRole());
+        }
+
+        return roles;
     }
 
     private Set<String> generateRolesFromGithubOrgMemberships(char[] token, String loginName) throws GithubAuthenticationException {

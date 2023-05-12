@@ -37,6 +37,8 @@ public class GithubOauthConfiguration {
 
     private static final String GITHUB_ORG = "github.org";
 
+    private static final String GITHUB_BASE_ROLE = "github.baserole";
+
     private static final String GITHUB_ORG_USE_REPOS = "github.org.userepos";
 
     private static final String REQUEST_CONNECT_TIMEOUT = "request.timeout.connect";
@@ -82,6 +84,10 @@ public class GithubOauthConfiguration {
 
     public String getGithubOrg() {
         return configuration.getProperty(GITHUB_ORG, "");
+    }
+
+    public String getBaseRole() {
+        return configuration.getProperty(GITHUB_BASE_ROLE, "");
     }
 
     public boolean getOrgCheckUseRepos() {

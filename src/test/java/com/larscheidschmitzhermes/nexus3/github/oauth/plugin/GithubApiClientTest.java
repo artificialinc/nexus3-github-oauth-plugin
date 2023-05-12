@@ -336,4 +336,17 @@ public class GithubApiClientTest {
         MatcherAssert.assertThat(roleIter2.next(), Is.is("TEST-ORG/admin"));
         MatcherAssert.assertThat(roleIter2.next(), Is.is("REPO-OWNER/demo-repo"));
     }
+
+    @Test
+    public void addBaseRole() throws Exception {
+        HttpClient mockClient = fullyFunctionalMockClient();
+        config.setGithubOrg("TEST-ORG,TEST-ORG2");
+        config.setBaseRole("fake-base-role");
+        GithubApiClient clientToTest = new GithubApiClient(mockClient, config);
+        GithubPrincipal authorizedPrincipal = clientToTest.authz("demo-user", "DUMMY".toCharArray());
+        Iterator roleIter = authorizedPrincipal.getRoles().iterator();
+        MatcherAssert.assertThat(roleIter.next(), Is.is("fake-base-role"));
+        MatcherAssert.assertThat(roleIter.next(), Is.is("TEST-ORG/admin"));
+        MatcherAssert.assertThat(roleIter.next(), Is.is("REPO-OWNER/demo-repo"));
+    }
 }
