@@ -160,7 +160,8 @@ public class GithubApiClient {
         // TODO: Do this in one pass? Or do a bigger refactor. Putting this here for now because owner/repo are still split
         if (orgs.size() > 0) {
             Set<GithubRepo> reposInAllowedOrgs = repos.stream().filter(repo -> {
-                return orgs.contains(repo.getOwner().getName());
+                LOGGER.info("Checking repo {} with owner {} in orgs {}", repo.getName(), repo.getOwner().getLogin(), orgs);
+                return orgs.contains(repo.getOwner().getLogin());
             }).collect(Collectors.toSet());
             if (reposInAllowedOrgs.size() == 0) {
                 throw new GithubAuthenticationException("Given username has no repo access in '" + orgs + "'!");

@@ -7,13 +7,15 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class GithubRepo {
     private String name;
-    private GithubUser owner;
 
-    public GithubUser getOwner() {
+    // Use org for owner because org only has login name. User object has teams and other stuff which fails serialization
+    private GithubOrg owner;
+
+    public GithubOrg getOwner() {
         return owner;
     }
 
-    public void setOwner(GithubUser owner) {
+    public void setOwner(GithubOrg owner) {
         this.owner = owner;
     }
 

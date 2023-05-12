@@ -67,10 +67,10 @@ public class GithubApiClientTest {
     private List<GithubRepo> mockTooManyRepos(int count, String ownername) {
         List<GithubRepo> repos = new ArrayList<>();
 
-        GithubUser user = mockUser(ownername);
+        GithubOrg owner = mockOrg(ownername);
         for (int i = 0; i < count; i++) {
             GithubRepo repo = new GithubRepo();
-            repo.setOwner(user);
+            repo.setOwner(owner);
             repo.setName(ownername + "admin_team_"+i);
             repos.add(repo);
         }
@@ -81,14 +81,19 @@ public class GithubApiClientTest {
     private GithubUser mockUser(String username) {
         GithubUser user = new GithubUser();
         user.setName(username);
-        user.setLogin("demo-user");
+        user.setLogin(username);
         return user;
     }
 
-    private Set<GithubOrg> mockOrg(String orgname) {
-        Set orgs = new HashSet();
+    private GithubOrg mockOrg(String orgname) {
         GithubOrg org = new GithubOrg();
         org.setLogin(orgname);
+        return org;
+    }
+
+    private Set<GithubOrg> mockOrgs(String orgname) {
+        Set orgs = new HashSet();
+        GithubOrg org = mockOrg(orgname);
         orgs.add(org);
         return orgs;
     }
@@ -96,7 +101,7 @@ public class GithubApiClientTest {
     private Set<GithubRepo> mockRepo(String reponame) {
         Set repos = new HashSet();
         GithubRepo repo = new GithubRepo();
-        repo.setOwner(mockUser("REPO-OWNER"));
+        repo.setOwner(mockOrg("REPO-OWNER"));
         repo.setName(reponame);
         repos.add(repo);
         return repos;
@@ -125,18 +130,18 @@ public class GithubApiClientTest {
     }
 
     private void mockResponsesForGithubAuthRequest(HttpClient mockClient) throws IOException {
-        HttpResponse mockUserResponse = createMockResponse(mockUser("Hans Wurst"));
+        HttpResponse mockUserResponse = createMockResponse(mockUser("demo-user"));
         when(mockClient.execute(Mockito.any())).thenAnswer(invocationOnMock -> answerOnInvocation(invocationOnMock, mockUserResponse));
     }
 
     private void mockResponsesForGithubAuthRequest2Many(HttpClient mockClient) throws IOException {
-        HttpResponse mockUserResponse = createMockResponse(mockUser("Hans Wurst"));
+        HttpResponse mockUserResponse = createMockResponse(mockUser("demo-user"));
         when(mockClient.execute(Mockito.any())).thenAnswer(invocationOnMock -> answerOnInvocation2Many(invocationOnMock, mockUserResponse));
     }
 
     private HttpResponse answerOnInvocation(InvocationOnMock invocationOnMock, HttpResponse mockUserResponse) throws IOException {
         HttpResponse mockTeamResponse = createMockResponse(mockTeams());
-        HttpResponse mockOrgsResponse = createMockResponse(mockOrg("TEST-ORG"));
+        HttpResponse mockOrgsResponse = createMockResponse(mockOrgs("TEST-ORG"));
         HttpResponse mockReposResponse = createMockResponse(mockRepo("demo-repo"));
 
         String uriString = ((HttpGet) invocationOnMock.getArguments()[0]).getURI().toString();
@@ -156,7 +161,7 @@ public class GithubApiClientTest {
 
     private HttpResponse answerOnInvocation2Many(InvocationOnMock invocationOnMock, HttpResponse mockUserResponse) throws IOException {
         HttpResponse mockTeamResponse = createMockResponse(mockTooManyTeams());
-        HttpResponse mockOrgsResponse = createMockResponse(mockOrg("TEST-ORG"));
+        HttpResponse mockOrgsResponse = createMockResponse(mockOrgs("TEST-ORG"));
         HttpResponse mockReposResponse1 = createMockResponse(mockTooManyRepos(100, "owner1"));
         HttpResponse mockReposResponse2 = createMockResponse(mockTooManyRepos(100, "owner2"));
         HttpResponse mockReposResponse3 = createMockResponse(mockTooManyRepos(50, "owner3"));
@@ -207,8 +212,9 @@ public class GithubApiClientTest {
 
         MatcherAssert.assertThat(authorizedPrincipal.getRoles().size(), Is.is(2));
         Iterator roleIter = authorizedPrincipal.getRoles().iterator();
-        MatcherAssert.assertThat(roleIter.next(), Is.is("demo-user/demo-repo"));
         MatcherAssert.assertThat(roleIter.next(), Is.is("TEST-ORG/admin"));
+        MatcherAssert.assertThat(roleIter.next(), Is.is("REPO-OWNER/demo-repo"));
+
         MatcherAssert.assertThat(authorizedPrincipal.getUsername(), Is.is("demo-user"));
         MatcherAssert.assertThat(authorizedPrincipal.getOauthToken(), Is.is("DUMMY".toCharArray()));
     }
@@ -319,14 +325,15 @@ public class GithubApiClientTest {
         GithubApiClient clientToTest = new GithubApiClient(mockClient, config);
         GithubPrincipal authorizedPrincipal = clientToTest.authz("demo-user", "DUMMY".toCharArray());
         Iterator roleIter = authorizedPrincipal.getRoles().iterator();
-        MatcherAssert.assertThat(roleIter.next(), Is.is("demo-user/demo-repo"));
         MatcherAssert.assertThat(roleIter.next(), Is.is("TEST-ORG/admin"));
+        MatcherAssert.assertThat(roleIter.next(), Is.is("REPO-OWNER/demo-repo"));
 
         HttpClient mockClient2 = fullyFunctionalMockClient();
         config.setGithubOrg("TEST-ORG2,TEST-ORG");
         GithubApiClient clientToTest2 = new GithubApiClient(mockClient2, config);
         GithubPrincipal authorizedPrincipal2 = clientToTest2.authz("demo-user", "DUMMY".toCharArray());
         Iterator roleIter2 = authorizedPrincipal2.getRoles().iterator();
-        MatcherAssert.assertThat(roleIter2.next(), Is.is("demo-user/demo-repo"));
-        MatcherAssert.assertThat(roleIter2.next(), Is.is("TEST-ORG/admin"));    }
+        MatcherAssert.assertThat(roleIter2.next(), Is.is("TEST-ORG/admin"));
+        MatcherAssert.assertThat(roleIter2.next(), Is.is("REPO-OWNER/demo-repo"));
+    }
 }

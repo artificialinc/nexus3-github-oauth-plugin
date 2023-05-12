@@ -96,3 +96,16 @@ You can build a ready to run docker image using the [`Dockerfile`](Dockerfile) t
 ## Credits
 
 The whole project is heavily influenced by the [nexus3-crowd-plugin](https://github.com/pingunaut/nexus3-crowd-plugin).
+
+## aidan
+
+Local nexus:
+
+```bash
+DOCKER_CONTEXT=default docker build . -t nexus-aidan
+DOCKER_CONTEXT=default docker run --rm --name nexus -p 8081:8081 nexus-aidan
+
+# different terminal
+DOCKER_CONTEXT=default docker cp nexus:/nexus-data/admin.password password.txt
+cat password.txt
+```
