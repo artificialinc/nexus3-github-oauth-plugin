@@ -127,6 +127,7 @@ Instead what we do is look at the repos a user has access to. Then you can add a
 
 1. A nexus role will be created for each repo they have access to. This allows for fine grained group control using nexus roles and permissions
 2. A base role can be added. This will be assigned to any user that has access to a repo in your specified organization. This allows broad access to any user who has access to one of your repos.
+  1. *Caveat:* If you configure the base role name to match a possible repository pattern, you can leave a security hole. Ex. base name: `github/base-role` if github had a repo named `base-role` anybody in that repo, would accidentally get our base permission. 
 
 Example:
 
