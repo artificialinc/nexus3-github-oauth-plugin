@@ -109,3 +109,53 @@ DOCKER_CONTEXT=default docker run --rm --name nexus -p 8081:8081 nexus-aidan
 DOCKER_CONTEXT=default docker cp nexus:/nexus-data/admin.password password.txt
 cat password.txt
 ```
+
+Building for release:
+
+1. Change `pom.xml` to bump release version
+2. `DOCKER_CONTEXT=default docker run --rm -it -v ~/.m2:/m2 -v $(pwd):/data -w /data maven:3.5.2 mvn -Dmaven.repo.local=/m2 clean package`
+3. Push changes
+4. Make Tag
+5. Create release
+6. Upload `.kar` from `targets` folder
+
+### Differences from upstream
+
+A mode was added that allows doing auth by looking at the repos that a user has access to. When a user is added as an outside collaborator to an organization, they are part of the enterprise, and keeping privacy between them can be difficult. You either need an org per customer, or something similar.
+
+Instead what we do is look at the repos a user has access to. Then you can add a collaborator to an individual repo, and they will be authenticated based on that. There are 2 modes here.
+
+1. A nexus role will be created for each repo they have access to. This allows for fine grained group control using nexus roles and permissions
+2. A base role can be added. This will be assigned to any user that has access to a repo in your specified organization. This allows broad access to any user who has access to one of your repos.
+
+Example:
+
+```
+resource "nexus_security_role" "github_readonly" {
+  roleid      = "org/repo1"
+  name        = "org/repo1"
+  description = "Repo 1 users"
+  privileges  = [
+    "nx-repository-view-pypi-repo1-read",
+  ]
+  roles       = []
+}
+
+resource "nexus_security_role" "github_base_readonly" {
+  roleid      = "base-role"
+  name        = "base-role"
+  description = "Base role for users"
+  privileges  = [
+    "nx-repository-view-pypi-all-read",
+  ]
+  roles       = []
+}
+```
+
+*Note*
+
+From the github api:
+
+> Lists repositories that the authenticated user has explicit permission (:read, :write, or :admin) to access.
+
+This means that any user who has explicit permission, will be granted the role in nexus. You need to be careful with how you give those roles access. It does mean that public repos are ok to have in your org, because repos will only show up for a user when granted explicit permissions.
