@@ -79,13 +79,17 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 		GithubPrincipal authenticatedPrincipal;
 		try {
 			authenticatedPrincipal = githubClient.authz(user.getUsername(), user.getOauthToken());
-			LOGGER.info("Successfully authenticated {}", user.getUsername());
+			if (githubClient.isGithubAppInstallationToken(user.getOauthToken())) {
+				LOGGER.info("Authenticated [GITHUB_APP] using GitHub App installation token. Mapped repositories as roles: {}",
+					authenticatedPrincipal.getRoles().stream().collect(Collectors.joining(", ")));
+			} else {
+				LOGGER.info("Authenticated {} using user token. Mapped roles: {}", user.getUsername(),
+					authenticatedPrincipal.getRoles().stream().collect(Collectors.joining(", ")));
+			}
 		} catch (GithubAuthenticationException e) {
 			LOGGER.warn("Failed authentication", e);
 			return null;
 		}
-		LOGGER.info("doGetAuthorizationInfo for user {} with roles {}", authenticatedPrincipal.getUsername(),
-				authenticatedPrincipal.getRoles().stream().collect(Collectors.joining(", ")));
 		return new SimpleAuthorizationInfo(authenticatedPrincipal.getRoles());
 	}
 
@@ -100,7 +104,7 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 	protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken token) throws AuthenticationException {
 		if (!(token instanceof UsernamePasswordToken)) {
 			throw new UnsupportedTokenException(String.format("Token of type %s  is not supported. A %s is required.",
-					token.getClass().getName(), UsernamePasswordToken.class.getName()));
+				token.getClass().getName(), UsernamePasswordToken.class.getName()));
 		}
 
 		UsernamePasswordToken t = (UsernamePasswordToken) token;
@@ -108,7 +112,11 @@ public class GithubOauthAuthenticatingRealm extends AuthorizingRealm {
 		GithubPrincipal authenticatedPrincipal;
 		try {
 			authenticatedPrincipal = githubClient.authz(t.getUsername(), t.getPassword());
-			LOGGER.info("Successfully authenticated {}", t.getUsername());
+			if (githubClient.isGithubAppInstallationToken(t.getPassword())) {
+				LOGGER.info("Authenticated [GITHUB_APP] using GitHub App installation token.");
+			} else {
+				LOGGER.info("Authenticated {} using user token.", t.getUsername());
+			}
 		} catch (GithubAuthenticationException e) {
 			LOGGER.warn("Failed authentication", e);
 			return null;

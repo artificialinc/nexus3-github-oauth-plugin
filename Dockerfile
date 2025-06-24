@@ -4,7 +4,7 @@ COPY . /build
 WORKDIR /build
 RUN --mount=type=cache,target=/m2 mvn clean package  -Dmaven.repo.local=/m2 -X
 
-FROM sonatype/nexus3:3.52.0
+FROM sonatype/nexus3:3.70.2
 USER root
 COPY --from=builder /build/target/nexus3-github-oauth-plugin-*.kar /opt/sonatype/nexus/deploy
 COPY githuboauth.properties /opt/sonatype/nexus/etc/githuboauth.properties

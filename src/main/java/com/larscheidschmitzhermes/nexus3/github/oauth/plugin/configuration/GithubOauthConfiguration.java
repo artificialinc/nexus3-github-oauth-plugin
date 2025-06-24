@@ -53,6 +53,9 @@ public class GithubOauthConfiguration {
 
     private static final int DEFAULT_REQUEST_SOCKET_TIMEOUT = -1;
 
+    private static final String GITHUB_APP_ID = "github.app.id";
+
+
     private static final Logger LOGGER = LoggerFactory.getLogger(GithubOauthConfiguration.class);
 
     private Properties configuration;
@@ -109,4 +112,9 @@ public class GithubOauthConfiguration {
     public Integer getRequestSocketTimeout() {
         return Integer.parseInt(configuration.getProperty(REQUEST_SOCKET_TIMEOUT, String.valueOf(DEFAULT_REQUEST_SOCKET_TIMEOUT)));
     }
+
+    public String getGithubAppId() {
+        return configuration.getProperty(GITHUB_APP_ID, "");
+    }
+
 }
