@@ -160,3 +160,21 @@ From the github api:
 > Lists repositories that the authenticated user has explicit permission (:read, :write, or :admin) to access.
 
 This means that any user who has explicit permission, will be granted the role in nexus. You need to be careful with how you give those roles access. It does mean that public repos are ok to have in your org, because repos will only show up for a user when granted explicit permissions.
+
+
+**Using GitHub App Tokens**
+
+You can now authenticate to Nexus using a GitHub App installation from a valid org in addition to user tokens 
+
+**Testing**
+1. **Generate a GitHub App installation token**
+   - Use a script (see `gentoken.sh` to generate a token for the app installation.
+   - Needs a valid App ID, Installation ID, and private key.
+
+2. **Login to Nexus**
+   - Use any string as the username (e.g., `GITHUB_APP`), and use the installation token as the password.
+   
+   Example with curl:
+   ```sh
+   curl -u artificialbuild:<INSTALLATION_TOKEN> http://localhost:8081/service/rest/v1/status
+   ```

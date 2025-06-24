@@ -7,6 +7,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -77,18 +80,60 @@ public class GithubApiClient {
                 .build();
     }
 
+    // Helper to detect if a token is a GitHub App installation token
+    public boolean isGithubAppInstallationToken(char[] token) {
+        String tokenStr = new String(token);
+        return tokenStr.startsWith("ghs_");
+    }
+
+    // Fetch installation repositories for a GitHub App installation token
+    public Set<String> getGithubAppInstallationRepositories(char[] installationToken) throws GithubAuthenticationException {
+        String uri = configuration.getGithubApiUrl() + "/installation/repositories";
+        // The response has a 'repositories' field which is a list
+        try (InputStreamReader reader = executeGet(uri, installationToken)) {
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> map = mapper.readValue(reader, Map.class);
+            List<Map<String, Object>> repos = (List<Map<String, Object>>) map.get("repositories");
+            Set<String> repoNames = new HashSet<>();
+            for (Map<String, Object> repo : repos) {
+                String fullName = (String) repo.get("full_name"); 
+                repoNames.add(fullName);
+            }
+            return repoNames;
+        } catch (IOException e) {
+            throw new GithubAuthenticationException(e);
+        }
+    }
+
     public GithubPrincipal authz(String login, char[] token) throws GithubAuthenticationException {
-        // Combine the login and the token as the cache key since they are both used to generate the principal. If either changes we should obtain a new
-        // principal.
-        String cacheKey = login + "|" + new String(token);
-        GithubPrincipal cached = tokenToPrincipalCache.getIfPresent(cacheKey);
-        if (cached != null) {
-            LOGGER.debug("Using cached principal for login: {}", login);
-            return cached;
-        } else {
-            GithubPrincipal principal = doAuthz(login, token);
-            tokenToPrincipalCache.put(cacheKey, principal);
+        if (isGithubAppInstallationToken(token)) {
+            // App installation token: validate and authorize
+            String allowedOrg = configuration.getGithubOrg();
+            Set<String> installationRepos = getGithubAppInstallationRepositories(token);
+            Set<String> authorizedRepos = installationRepos.stream()
+                .filter(repo -> allowedOrg.isEmpty() || repo.startsWith(allowedOrg + "/"))
+                .collect(Collectors.toSet());
+            if (authorizedRepos.isEmpty()) {
+                throw new GithubAuthenticationException("No authorized repositories for this GitHub App installation token");
+            }
+            GithubPrincipal principal = new GithubPrincipal();
+            principal.setUsername(login);
+            principal.setRoles(authorizedRepos);
+            principal.setOauthToken(token);
             return principal;
+        } else {
+            // Combine the login and the token as the cache key since they are both used to generate the principal. If either changes we should obtain a new
+            // principal.
+            String cacheKey = login + "|" + new String(token);
+            GithubPrincipal cached = tokenToPrincipalCache.getIfPresent(cacheKey);
+            if (cached != null) {
+                LOGGER.debug("Using cached principal for login: {}", login);
+                return cached;
+            } else {
+                GithubPrincipal principal = doAuthz(login, token);
+                tokenToPrincipalCache.put(cacheKey, principal);
+                return principal;
+            }
         }
     }
 

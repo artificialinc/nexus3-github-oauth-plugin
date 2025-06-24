@@ -349,4 +349,32 @@ public class GithubApiClientTest {
         MatcherAssert.assertThat(roleIter.next(), Is.is("TEST-ORG/admin"));
         MatcherAssert.assertThat(roleIter.next(), Is.is("REPO-OWNER/demo-repo"));
     }
+
+    @Test
+    public void shouldAuthorizeWithGithubAppToken() throws Exception {
+        // Mock the /installation/repositories response
+        HttpClient mockClient = mock(HttpClient.class);
+        Map<String, Object> responseMap = new HashMap<>();
+        List<Map<String, Object>> repos = new ArrayList<>();
+        Map<String, Object> repo1 = new HashMap<>();
+        repo1.put("full_name", "TEST-ORG/repo1");
+        repos.add(repo1);
+        Map<String, Object> repo2 = new HashMap<>();
+        repo2.put("full_name", "OTHER-ORG/repo2");
+        repos.add(repo2);
+        responseMap.put("repositories", repos);
+        HttpResponse mockResponse = createMockResponse(responseMap);
+        when(mockClient.execute(Mockito.any())).thenReturn(mockResponse);
+
+        config.setGithubOrg("TEST-ORG");
+        GithubApiClient clientToTest = new GithubApiClient(mockClient, config);
+        // Use a token that will be detected as an app installation token
+        char[] appToken = "ghs_1234567890abcdef".toCharArray();
+        GithubPrincipal principal = clientToTest.authz("ignored", appToken);
+        // Only TEST-ORG/repo1 should be authorized
+        MatcherAssert.assertThat(principal.getRoles().size(), Is.is(1));
+        MatcherAssert.assertThat(principal.getRoles().iterator().next(), Is.is("TEST-ORG/repo1"));
+        MatcherAssert.assertThat(principal.getOauthToken(), Is.is(appToken));
+        MatcherAssert.assertThat(principal.getRoles().contains("OTHER-ORG/repo2"), Is.is(false));
+    }
 }
