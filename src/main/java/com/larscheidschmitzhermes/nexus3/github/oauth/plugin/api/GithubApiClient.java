@@ -106,35 +106,48 @@ public class GithubApiClient {
     }
 
     public GithubPrincipal authz(String login, char[] token) throws GithubAuthenticationException {
+        String cacheKey;
         if (isGithubAppInstallationToken(token)) {
-            // App installation token: validate and authorize
-            String allowedOrg = configuration.getGithubOrg();
-            Set<String> installationRepos = getGithubAppInstallationRepositories(token);
-            Set<String> authorizedRepos = installationRepos.stream()
-                .filter(repo -> allowedOrg.isEmpty() || repo.startsWith(allowedOrg + "/"))
-                .collect(Collectors.toSet());
-            if (authorizedRepos.isEmpty()) {
-                throw new GithubAuthenticationException("No authorized repositories for this GitHub App installation token");
-            }
-            GithubPrincipal principal = new GithubPrincipal();
-            principal.setUsername(login);
-            principal.setRoles(authorizedRepos);
-            principal.setOauthToken(token);
-            return principal;
+            cacheKey = "GITHUB_APP|" + new String(token);
         } else {
-            // Combine the login and the token as the cache key since they are both used to generate the principal. If either changes we should obtain a new
-            // principal.
-            String cacheKey = login + "|" + new String(token);
-            GithubPrincipal cached = tokenToPrincipalCache.getIfPresent(cacheKey);
-            if (cached != null) {
-                LOGGER.debug("Using cached principal for login: {}", login);
-                return cached;
-            } else {
-                GithubPrincipal principal = doAuthz(login, token);
-                tokenToPrincipalCache.put(cacheKey, principal);
-                return principal;
-            }
+            cacheKey = login + "|" + new String(token);
         }
+        GithubPrincipal cached = tokenToPrincipalCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            if (isGithubAppInstallationToken(token)) {
+                LOGGER.debug("Using cached principal for GitHub App installation token");
+            } else {
+                LOGGER.debug("Using cached principal for login: {}", login);
+            }
+            return cached;
+        }
+        // not in cache so fetch from GitHub
+        LOGGER.debug("Fetching principal for login: {}", login)
+        GithubPrincipal principal;
+        if (isGithubAppInstallationToken(token)) {
+            principal = doAuthzGithubApp(token);
+        } else {
+            principal = doAuthz(login, token);
+        }
+        tokenToPrincipalCache.put(cacheKey, principal);
+        return principal;
+    }
+
+    // Handles GitHub App installation token authorization
+    private GithubPrincipal doAuthzGithubApp(char[] token) throws GithubAuthenticationException {
+        String allowedOrg = configuration.getGithubOrg();
+        Set<String> installationRepos = getGithubAppInstallationRepositories(token);
+        Set<String> authorizedRepos = installationRepos.stream()
+            .filter(repo -> allowedOrg.isEmpty() || repo.startsWith(allowedOrg + "/"))
+            .collect(Collectors.toSet());
+        if (authorizedRepos.isEmpty()) {
+            throw new GithubAuthenticationException("No authorized repositories for this GitHub App installation token");
+        }
+        GithubPrincipal principal = new GithubPrincipal();
+        principal.setUsername("GITHUB_APP");
+        principal.setRoles(authorizedRepos);
+        principal.setOauthToken(token);
+        return principal;
     }
 
     private GithubPrincipal doAuthz(String loginName, char[] token) throws GithubAuthenticationException {
